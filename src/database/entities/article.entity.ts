@@ -1,5 +1,4 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, ManyToOne } from 'typeorm';
-import { User } from './user.entity';
+import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 
 @Entity()
 export class Article {
@@ -9,24 +8,20 @@ export class Article {
   @Column()
   title: string;
 
-  @Column()
+  @Column({ nullable: true })
   subtitle: string;
 
   @Column('text')
   content: string;
 
-  @Column('jsonb', { nullable: true })
-  images: {
-    url: string;
-    caption: string;
-    position: number;
-  }[];
+  @Column({ nullable: true })
+  thumbnail: string;
+
+  @Column()
+  authorName: string;
 
   @Column('text', { array: true, default: [] })
   tags: string[];
-
-  @ManyToOne(() => User)
-  author: User;
 
   @Column({ default: true })
   isPublished: boolean;

@@ -1,4 +1,5 @@
-import { Entity, Column, PrimaryGeneratedColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, ManyToOne } from 'typeorm';
+import { Category } from './category.entity';
 
 @Entity()
 export class Question {
@@ -10,6 +11,9 @@ export class Question {
 
   @Column('simple-array')
   options: string[];
+
+  @ManyToOne(() => Category, category => category.questions, { onDelete: 'CASCADE' })
+  category: Category;
 
   @Column({ default: true })
   isActive: boolean;

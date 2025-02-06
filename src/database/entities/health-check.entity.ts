@@ -1,13 +1,17 @@
 import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, ManyToOne } from 'typeorm';
 import { User } from './user.entity';
+import { Category } from './category.entity';
 
 @Entity()
 export class HealthCheck {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @ManyToOne(() => User)
+  @ManyToOne(() => User, { onDelete: 'CASCADE' })
   user: User;
+
+  @ManyToOne(() => Category)
+  category: Category;
 
   @Column('jsonb')
   answers: {

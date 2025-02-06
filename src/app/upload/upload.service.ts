@@ -11,6 +11,20 @@ import * as sharp from 'sharp';
 import { GeminiService } from '../gemini/gemini.service';
 import { User } from '../../database/entities/user.entity';
 
+interface AnalysisFilters {
+  startDate?: Date;
+  endDate?: Date;
+  userId?: number;
+  status?: 'processing' | 'completed';
+}
+
+interface PaginationOptions {
+  page: number;
+  limit: number;
+  sortBy?: string;
+  sortOrder?: 'ASC' | 'DESC';
+}
+
 @Injectable()
 export class UploadService {
   private readonly FREE_UPLOAD_LIMIT = 2;
@@ -169,6 +183,69 @@ export class UploadService {
       remaining: Math.max(0, this.FREE_UPLOAD_LIMIT - user.uploadCount),
       total: this.FREE_UPLOAD_LIMIT,
       isPremium: false
+    };
+  }
+
+  async getAllAnalyses(
+    filters?: AnalysisFilters,
+    pagination?: PaginationOptions
+  ) {
+    const query = this.imageRepository.createQueryBuilder('image')
+      .leftJoinAndSelect('image.user', 'user')
+      .select([
+        'image.id',
+        'image.url',
+        'image.description',
+        'image.analysis',
+        'image.createdAt',
+        'user.id',
+        'user.fullName',
+        'user.email',
+        'user.role'
+      ]);
+
+    // Apply filters
+    if (filters) {
+      if (filters.startDate) {
+        query.andWhere('image.createdAt >= :startDate', { startDate: filters.startDate });
+      }
+      if (filters.endDate) {
+        query.andWhere('image.createdAt <= :endDate', { endDate: filters.endDate });
+      }
+      if (filters.userId) {
+        query.andWhere('user.id = :userId', { userId: filters.userId });
+      }
+      if (filters.status) {
+        if (filters.status === 'processing') {
+          query.andWhere('image.analysis = :analysis', { analysis: 'Processing...' });
+        } else {
+          query.andWhere('image.analysis != :analysis', { analysis: 'Processing...' });
+        }
+      }
+    }
+
+    // Apply sorting
+    const sortBy = pagination?.sortBy || 'createdAt';
+    const sortOrder = pagination?.sortOrder || 'DESC';
+    query.orderBy(`image.${sortBy}`, sortOrder);
+
+    // Apply pagination
+    if (pagination) {
+      const skip = (pagination.page - 1) * pagination.limit;
+      query.skip(skip).take(pagination.limit);
+    }
+
+    // Get total count for pagination
+    const [analyses, total] = await query.getManyAndCount();
+
+    return {
+      data: analyses,
+      pagination: pagination ? {
+        total,
+        page: pagination.page,
+        limit: pagination.limit,
+        totalPages: Math.ceil(total / pagination.limit)
+      } : null
     };
   }
 } 

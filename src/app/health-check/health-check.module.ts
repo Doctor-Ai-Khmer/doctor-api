@@ -4,11 +4,12 @@ import { HealthCheckController } from './health-check.controller';
 import { HealthCheckService } from './health-check.service';
 import { HealthCheck } from '../../database/entities/health-check.entity';
 import { Question } from '../../database/entities/question.entity';
+import { Category } from '../../database/entities/category.entity';
 import { GeminiModule } from '../gemini/gemini.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([HealthCheck, Question]),
+    TypeOrmModule.forFeature([HealthCheck, Question, Category]),
     GeminiModule,
   ],
   controllers: [HealthCheckController],

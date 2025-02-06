@@ -1,4 +1,6 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, OneToMany } from 'typeorm';
+import { Image } from './image.entity';
+import { HealthCheck } from './health-check.entity';
 
 export enum UserRole {
   ADMIN = 'admin',
@@ -29,11 +31,23 @@ export class User {
   @Column({ default: true })
   isActive: boolean;
 
+  @Column({ default: false })
+  isBlocked: boolean;
+
+  @Column({ type: 'text', nullable: true })
+  blockReason: string;
+
   @Column({ default: 0 })
   uploadCount: number;
 
   @Column({ default: false })
   isPremium: boolean;
+
+  @OneToMany(() => Image, image => image.user)
+  images: Image[];
+
+  @OneToMany(() => HealthCheck, healthCheck => healthCheck.user)
+  healthChecks: HealthCheck[];
 
   @CreateDateColumn()
   createdAt: Date;

@@ -4,58 +4,114 @@ import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../../database/entities/user.entity';
 import { HealthCheckService } from './health-check.service';
-import { Question } from '../../database/entities/question.entity';
 
 @Controller('health-check')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class HealthCheckController {
   constructor(private healthCheckService: HealthCheckService) {}
 
-  // Admin-only endpoints
-  @Post('questions')
+  // Category endpoints
+  @Post('categories')
   @Roles(UserRole.ADMIN)
-  createQuestion(@Body() questionData: { question: string; options: string[]; order?: number }) {
-    return this.healthCheckService.createQuestion(questionData);
+  createCategory(@Body() data: { name: string; description?: string }) {
+    return this.healthCheckService.createCategory(data);
   }
 
-  @Put('questions/:id')
-  @Roles(UserRole.ADMIN)
-  updateQuestion(@Param('id') id: number, @Body() questionData: Partial<Question>) {
-    return this.healthCheckService.updateQuestion(id, questionData);
-  }
-
-  @Delete('questions/:id')
-  @Roles(UserRole.ADMIN)
-  deleteQuestion(@Param('id') id: number) {
-    return this.healthCheckService.deleteQuestion(id);
-  }
-
-  // User endpoints (accessible by both admin and users)
-  @Get('questions')
+  @Get('categories')
   @Roles(UserRole.ADMIN, UserRole.USER)
-  getQuestions() {
-    return this.healthCheckService.getQuestions();
+  getAllCategories() {
+    return this.healthCheckService.getAllCategories();
   }
 
-  @Post('submit')
+  @Get('categories/list')
+  @Roles(UserRole.ADMIN, UserRole.USER)
+  getAllCategoriesWithoutQuestions() {
+    return this.healthCheckService.getAllCategoriesWithoutQuestions();
+  }
+
+  @Put('categories/:id')
+  @Roles(UserRole.ADMIN)
+  updateCategory(
+    @Param('id') id: number,
+    @Body() data: { name?: string; description?: string; isActive?: boolean }
+  ) {
+    return this.healthCheckService.updateCategory(id, data);
+  }
+
+  @Delete('categories/:id')
+  @Roles(UserRole.ADMIN)
+  deleteCategory(@Param('id') id: number) {
+    return this.healthCheckService.deleteCategory(id);
+  }
+
+  // Question endpoints
+  @Post('categories/:categoryId/questions')
+  @Roles(UserRole.ADMIN)
+  createQuestion(
+    @Param('categoryId') categoryId: number,
+    @Body() questionData: { question: string; options: string[]; order?: number }
+  ) {
+    return this.healthCheckService.createQuestion(categoryId, questionData);
+  }
+
+  @Get('categories/:categoryId/questions')
+  @Roles(UserRole.ADMIN, UserRole.USER)
+  getQuestionsByCategory(@Param('categoryId') categoryId: number) {
+    return this.healthCheckService.getQuestionsByCategory(categoryId);
+  }
+
+  @Put('categories/:categoryId/questions/:questionId')
+  @Roles(UserRole.ADMIN)
+  async updateQuestion(
+    @Param('categoryId') categoryId: number,
+    @Param('questionId') questionId: number,
+    @Body() updateData: {
+      question?: string;
+      options?: string[];
+      order?: number;
+      isActive?: boolean;
+    }
+  ) {
+    return this.healthCheckService.updateQuestion(categoryId, questionId, updateData);
+  }
+
+  // Submit answers for a specific category
+  @Post('categories/:categoryId/submit')
   @Roles(UserRole.ADMIN, UserRole.USER)
   async submitAnswers(
     @Req() req,
-    @Body('answers') answers: { question: string; answer: string }[]
+    @Param('categoryId') categoryId: number,
+    @Body('answers') answers: { questionId: number; answer: string }[]
   ) {
-    return this.healthCheckService.submitAnswers(req.user.userId, answers);
+    return this.healthCheckService.submitAnswers(req.user.userId, categoryId, answers);
   }
 
+  // History endpoints
   @Get('history')
   @Roles(UserRole.ADMIN, UserRole.USER)
   async getHistory(@Req() req) {
     return this.healthCheckService.getUserHistory(req.user.userId);
   }
 
-  // Admin-only endpoint to view all users' history
   @Get('all-history')
   @Roles(UserRole.ADMIN)
   async getAllHistory() {
     return this.healthCheckService.getAllUsersHistory();
+  }
+
+  // Add this new endpoint
+  @Post('categories/:categoryId/questions/bulk')
+  @Roles(UserRole.ADMIN)
+  createQuestions(
+    @Param('categoryId') categoryId: number,
+    @Body() questionsData: {
+      questions: {
+        question: string;
+        options: string[];
+        order: number;
+      }[]
+    }
+  ) {
+    return this.healthCheckService.createQuestions(categoryId, questionsData.questions);
   }
 } 

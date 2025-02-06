@@ -9,6 +9,7 @@ import { AuthModule } from './auth/auth.module';
 import { HealthCheckModule } from './health-check/health-check.module';
 import { HealthCheck } from '../database/entities/health-check.entity';
 import { Question } from '../database/entities/question.entity';
+import { Category } from '../database/entities/category.entity';
 import { Article } from '../database/entities/article.entity';
 import { AuthMiddleware } from './auth/auth.middleware';
 import { JwtModule } from '@nestjs/jwt';
@@ -18,7 +19,7 @@ import { ArticleModule } from './article/article.module';
   imports: [
     TypeOrmModule.forRoot({
       ...databaseConfig,
-      entities: [Image, User, HealthCheck, Question, Article],
+      entities: [Image, User, HealthCheck, Question, Category, Article],
     }),
     UploadModule,
     GeminiModule,

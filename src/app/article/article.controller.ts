@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Req, ParseIntPipe, DefaultValuePipe } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -9,15 +9,46 @@ import { ArticleService } from './article.service';
 export class ArticleController {
   constructor(private readonly articleService: ArticleService) {}
 
-  // Public endpoints
   @Get()
-  findAll(@Query() query: { search?: string; tags?: string[] }) {
-    return this.articleService.findAll(query);
+  @UseGuards(JwtAuthGuard)
+  findAll(
+    @Req() req: any,
+    @Query('search') search?: string,
+    @Query('tags') tags?: string[],
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page = 1,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit = 10,
+    @Query('sortBy', new DefaultValuePipe('createdAt')) sortBy = 'createdAt',
+    @Query('sortOrder', new DefaultValuePipe('DESC')) sortOrder: 'ASC' | 'DESC' = 'DESC'
+  ) {
+    const filters = { search, tags };
+    const pagination = { page, limit, sortBy, sortOrder };
+    return this.articleService.findAll(filters, pagination, req.user?.userId);
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: number) {
-    return this.articleService.findOne(id);
+  @Get('featured')
+  async getFeatured() {
+    const filters = { isPublished: true };
+    const pagination = { 
+      page: 1, 
+      limit: 5, 
+      sortBy: 'createdAt', 
+      sortOrder: 'DESC' as const 
+    };
+    const result = await this.articleService.findAll(filters, pagination);
+    return result.data;
+  }
+
+  @Get('latest')
+  async getLatest() {
+    const filters = { isPublished: true };
+    const pagination = { 
+      page: 1, 
+      limit: 10, 
+      sortBy: 'createdAt', 
+      sortOrder: 'DESC' as const 
+    };
+    const result = await this.articleService.findAll(filters, pagination);
+    return result.data;
   }
 
   @Get('tags/all')
@@ -25,7 +56,11 @@ export class ArticleController {
     return this.articleService.getAllTags();
   }
 
-  // Admin-only endpoints
+  @Get(':id')
+  findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.articleService.findOne(id);
+  }
+
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
@@ -36,14 +71,14 @@ export class ArticleController {
   @Put(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
-  update(@Param('id') id: number, @Body() updateData: any) {
+  update(@Param('id', ParseIntPipe) id: number, @Body() updateData: any) {
     return this.articleService.update(id, updateData);
   }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
-  delete(@Param('id') id: number) {
+  delete(@Param('id', ParseIntPipe) id: number) {
     return this.articleService.delete(id);
   }
 } 
