@@ -59,46 +59,59 @@ export class UploadService {
       throw new BadRequestException('No file uploaded');
     }
 
-    // Compress image
-    const compressedImageBuffer = await this.compressImage(file.buffer);
-    
-    // Upload to Firebase
-    const fileUrl = await this.uploadToFirebase({
-      ...file,
-      buffer: compressedImageBuffer
-    });
-    
-    // Create image record
-    const image = this.imageRepository.create({
-      url: fileUrl,
-      description,
-      analysis: 'Processing...',
-    });
-    await this.imageRepository.save(image);
+    try {
+      // Compress image
+      const compressedImageBuffer = await this.compressImage(file.buffer);
+      
+      // Upload to Firebase
+      const fileUrl = await this.uploadToFirebase({
+        ...file,
+        buffer: compressedImageBuffer
+      });
+      
+      // Create image record with initial analysis status
+      const image = this.imageRepository.create({
+        url: fileUrl,
+        description,
+        analysis: 'Processing...',
+        user
+      });
+      await this.imageRepository.save(image);
 
-    // Increment upload count for non-admin, non-premium users
-    if (user.role !== 'admin' && !user.isPremium) {
-      user.uploadCount++;
-      await this.userRepository.save(user);
+      // Increment upload count for non-admin, non-premium users
+      if (user.role !== 'admin' && !user.isPremium) {
+        user.uploadCount++;
+        await this.userRepository.save(user);
+      }
+
+      // Add to queue for processing
+      await this.imageAnalysisQueue.add('analyze', {
+        imageId: image.id,
+        imageBuffer: compressedImageBuffer,
+      }, {
+        attempts: 3,
+        backoff: {
+          type: 'exponential',
+          delay: 2000,
+        },
+      });
+
+      try {
+        // Try immediate analysis but don't block the response
+        const analysisResult = await this.geminiService.analyzeImage(compressedImageBuffer);
+        if (analysisResult) {
+          image.analysis = analysisResult;
+          await this.imageRepository.save(image);
+        }
+      } catch (analysisError) {
+        // Log the error but don't fail the upload
+        console.warn('Initial analysis failed, will retry in queue:', analysisError.message);
+      }
+
+      return image;
+    } catch (error) {
+      throw new BadRequestException(`Failed to process upload: ${error.message}`);
     }
-
-    // Add to queue for processing
-    await this.imageAnalysisQueue.add('analyze', {
-      imageId: image.id,
-      imageBuffer: compressedImageBuffer,
-    }, {
-      attempts: 3,
-      backoff: {
-        type: 'exponential',
-        delay: 2000,
-      },
-    });
-
-    // Example usage of geminiService
-    const analysisResult = await this.geminiService.analyzeImage(compressedImageBuffer);
-    // Handle the analysis result as needed
-
-    return image;
   }
 
   private async compressImage(buffer: Buffer): Promise<Buffer> {
