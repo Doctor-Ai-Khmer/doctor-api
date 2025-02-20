@@ -18,8 +18,11 @@ export class ImageAnalysisProcessor {
     const { imageId, imageBuffer } = job.data;
     
     try {
+      // Convert base64 string back to Buffer
+      const buffer = Buffer.from(imageBuffer, 'base64');
+      
       // Get AI analysis
-      const analysis = await this.geminiService.analyzeImage(imageBuffer);
+      const analysis = await this.geminiService.analyzeImage(buffer);
       
       // Update image record with analysis
       await this.imageRepository.update(imageId, { analysis });

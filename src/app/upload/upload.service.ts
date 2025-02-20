@@ -87,7 +87,7 @@ export class UploadService {
       // Add to queue for processing
       await this.imageAnalysisQueue.add('analyze', {
         imageId: image.id,
-        imageBuffer: compressedImageBuffer,
+        imageBuffer: compressedImageBuffer.toString('base64'),
       }, {
         attempts: 3,
         backoff: {

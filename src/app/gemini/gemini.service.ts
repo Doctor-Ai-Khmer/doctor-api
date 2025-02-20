@@ -14,19 +14,39 @@ export class GeminiService {
   }
 
   private bufferToGenerativePart(buffer: Buffer, mimeType: string) {
-    return {
-      inlineData: {
-        data: buffer.toString('base64'),
-        mimeType,
-      },
-    };
+    if (!Buffer.isBuffer(buffer)) {
+      throw new Error('Input must be a valid Buffer');
+    }
+    
+    try {
+      return {
+        inlineData: {
+          data: buffer.toString('base64'),
+          mimeType: mimeType || 'image/jpeg',
+        },
+      };
+    } catch (error) {
+      throw new Error(`Failed to convert buffer to base64: ${error.message}`);
+    }
   }
 
   async analyzeImage(imageData: Buffer): Promise<string> {
     try {
-      const prompt = "Analyze this medical image and provide detailed observations about what you see. Include any potential abnormalities or areas of concern. If this is not a medical image, please respond with 'This is not a medical image.' Please provide the response in Khmer language.";
+      if (!Buffer.isBuffer(imageData)) {
+        throw new Error('Image data must be a valid Buffer');
+      }
+
+      const prompt = `Please analyze this health check result image. Provide a detailed analysis including:
+- Interpretation of each result
+- Whether each result is normal or abnormal
+- Health improvement recommendations
+Please structure your response in easy-to-read paragraphs and provide ALL output in Khmer (Cambodian) language.`;
       
-      const imagePart = this.bufferToGenerativePart(imageData, "image/jpeg");
+      const imagePart = this.bufferToGenerativePart(imageData, 'image/jpeg');
+      
+      if (!imagePart || !imagePart.inlineData || !imagePart.inlineData.data) {
+        throw new Error('Failed to prepare image data for analysis');
+      }
 
       const result = await this.visionModel.generateContent([prompt, imagePart]);
       const response = await result.response;

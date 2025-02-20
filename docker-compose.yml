@@ -1,5 +1,39 @@
 version: '3.8'
 services:
+  api:
+    build: .
+    container_name: doctor_api
+    environment:
+      - PORT=8001
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USERNAME=doctor_db
+      - DB_PASSWORD=doctor1234
+      - DB_NAME=doctor_db
+      - DB_SYNC=true
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRATION_TIME=${JWT_EXPIRATION_TIME}
+      - FIREBASE_API_KEY=${FIREBASE_API_KEY}
+      - FIREBASE_AUTH_DOMAIN=${FIREBASE_AUTH_DOMAIN}
+      - FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID}
+      - FIREBASE_STORAGE_BUCKET=${FIREBASE_STORAGE_BUCKET}
+      - FIREBASE_MESSAGING_SENDER_ID=${FIREBASE_MESSAGING_SENDER_ID}
+      - FIREBASE_APP_ID=${FIREBASE_APP_ID}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - GOOGLE_CALLBACK_URL=${GOOGLE_CALLBACK_URL}
+    ports:
+      - "8001:8001"
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - ./uploads:/usr/src/app/uploads
+    restart: unless-stopped
+
   postgres:
     image: postgres:latest
     container_name: postgres_db
@@ -12,5 +46,16 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
+
+  redis:
+    image: redis:alpine
+    container_name: redis_cache
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
 volumes:
   postgres_data:
+  redis_data:
