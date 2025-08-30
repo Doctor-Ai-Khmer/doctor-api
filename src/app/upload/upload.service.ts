@@ -3,13 +3,14 @@ import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { storage } from '../../config/firebase.config';
+// import { storage } from '../../config/firebase.config';
 import { Image } from '../../database/entities/image.entity';
 import { v4 as uuidv4 } from 'uuid';
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+// import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import * as sharp from 'sharp';
 import { GeminiService } from '../gemini/gemini.service';
 import { User } from '../../database/entities/user.entity';
+import { supabase } from '../../config/supabase.config';
 
 interface AnalysisFilters {
   startDate?: Date;
@@ -64,7 +65,7 @@ export class UploadService {
       const compressedImageBuffer = await this.compressImage(file.buffer);
       
       // Upload to Firebase
-      const fileUrl = await this.uploadToFirebase({
+      const fileUrl = await this.uploadToSupabase({
         ...file,
         buffer: compressedImageBuffer
       });
@@ -134,29 +135,37 @@ export class UploadService {
     }
   }
 
-  private async uploadToFirebase(file: Express.Multer.File): Promise<string> {
+  private async uploadToSupabase(file: Express.Multer.File): Promise<string> {
     try {
       if (!file.originalname || !file.buffer) {
         throw new BadRequestException('Invalid file');
       }
 
       const fileName = `${uuidv4()}-${file.originalname.replace(/\.[^/.]+$/, '')}.jpg`;
-      const storageRef = ref(storage, fileName);
       
-      // Set metadata with correct content type for JPEG
-      const metadata = {
-        contentType: 'image/jpeg',
-        contentDisposition: 'inline',
-      };
+      // Upload to Supabase Storage
+      const { data, error } = await supabase.storage
+        .from('Medicle Report Doc') // Your bucket name
+        .upload(fileName, file.buffer, {
+          contentType: 'image/jpeg',
+          cacheControl: '3600',
+          upsert: false
+        });
 
-      // Upload compressed buffer with metadata
-      await uploadBytes(storageRef, file.buffer, metadata);
-      
-      // Get the download URL
-      const downloadURL = await getDownloadURL(storageRef);
-      return downloadURL;
+      if (error) {
+        console.error('Supabase upload error:', error);
+        throw new BadRequestException(`Failed to upload file: ${error.message}`);
+      }
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('Medicle Report Doc')
+        .getPublicUrl(fileName);
+
+      return publicUrl;
     } catch (error) {
-      throw new BadRequestException('Failed to upload file: ' + error.message);
+      console.error('Supabase upload error:', error);
+      throw new BadRequestException(`Failed to upload file: ${error.message}`);
     }
   }
 
