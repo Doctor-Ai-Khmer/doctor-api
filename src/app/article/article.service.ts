@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Like } from 'typeorm';
+import { Repository } from 'typeorm';
 import { Article } from '../../database/entities/article.entity';
 import { User } from '../../database/entities/user.entity';
 import { UserRole } from '../../database/entities/user.entity';

@@ -24,7 +24,7 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  async register(registerDto: { email: string; password: string; fullName: string; role?: UserRole }) {
+  async register(registerDto: { email: string; password: string; fullName: string }) {
     const existingUser = await this.userRepository.findOne({
       where: { email: registerDto.email },
     });
@@ -38,7 +38,7 @@ export class AuthService {
     const user = this.userRepository.create({
       ...registerDto,
       password: hashedPassword,
-      role: registerDto.role || UserRole.USER, // Default to USER role
+      role: UserRole.USER, // Always set to USER role for security
     });
 
     await this.userRepository.save(user);
@@ -322,6 +322,32 @@ export class AuthService {
     return {
       message: `User ${user.email} has been unblocked`
     };
+  }
+
+  // Internal method for creating admin users - NOT exposed via API
+  async createAdminUser(adminData: { email: string; password: string; fullName: string }) {
+    const existingUser = await this.userRepository.findOne({
+      where: { email: adminData.email },
+    });
+
+    if (existingUser) {
+      throw new BadRequestException('Email already exists');
+    }
+
+    const hashedPassword = await bcrypt.hash(adminData.password, 10);
+    
+    const adminUser = this.userRepository.create({
+      ...adminData,
+      password: hashedPassword,
+      role: UserRole.ADMIN,
+      isActive: true,
+      isPremium: true,
+    });
+
+    await this.userRepository.save(adminUser);
+
+    const { password, ...result } = adminUser;
+    return result;
   }
 
   async getBlockedUsers() {

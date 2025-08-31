@@ -3,73 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>API Documentation</title>
+    <title>Docker AI API</title>
     <style>
         body {
             font-family: Arial, sans-serif;
             line-height: 1.6;
             margin: 0;
             padding: 20px;
-            max-width: 1200px;
+            max-width: 600px;
             margin: 0 auto;
+            text-align: center;
         }
-        .endpoint {
-            border: 1px solid #ddd;
-            padding: 15px;
-            margin: 10px 0;
-            border-radius: 5px;
+        .container {
+            margin-top: 100px;
         }
-        .method {
-            font-weight: bold;
-            color: #fff;
-            padding: 5px 10px;
-            border-radius: 3px;
-            display: inline-block;
+        h1 {
+            font-size: 2.5em;
+            color: #222;
         }
-        .get { background-color: #61affe; }
-        .post { background-color: #49cc90; }
-        .delete { background-color: #f93e3e; }
-        .put { background-color: #fca130; }
+        p {
+            font-size: 1.2em;
+            color: #555;
+        }
+        footer {
+            margin-top: 80px;
+            color: #aaa;
+            font-size: 0.95em;
+        }
     </style>
 </head>
 <body>
-    <h1>API Documentation</h1>
-    <p>Welcome to our API documentation. This API is running on port 8000.</p>
-
-    <h2>Endpoints</h2>
-    
-    <div class="endpoint">
-        <span class="method get">GET</span>
-        <code>/api</code>
-        <p>Base endpoint to check if the API is running.</p>
+    <div class="container">
+        <h1>Docker AI API</h1>
+        <p>This is the API service for Docker AI.</p>
     </div>
-
-    <div class="endpoint">
-        <span class="method post">POST</span>
-        <code>/api/resource</code>
-        <p>Create a new resource.</p>
-    </div>
-
-    <div class="endpoint">
-        <span class="method get">GET</span>
-        <code>/api/resource/:id</code>
-        <p>Retrieve a specific resource by ID.</p>
-    </div>
-
-    <div class="endpoint">
-        <span class="method put">PUT</span>
-        <code>/api/resource/:id</code>
-        <p>Update an existing resource.</p>
-    </div>
-
-    <div class="endpoint">
-        <span class="method delete">DELETE</span>
-        <code>/api/resource/:id</code>
-        <p>Delete a specific resource.</p>
-    </div>
-
     <footer>
-        <p>Built with NestJS</p>
+        <p>&copy; 2024 Docker AI</p>
     </footer>
 </body>
 </html>
