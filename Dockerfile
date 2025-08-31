@@ -33,8 +33,8 @@ COPY package*.json ./
 RUN npm ci --only=production && npm cache clean --force
 
 # Copy built application from builder stage
-COPY --from=nestjs:nodejs /app/dist ./dist
-COPY --from=nestjs:nodejs /app/node_modules ./node_modules
+COPY --from=builder --chown=nestjs:nodejs /app/dist ./dist
+COPY --from=builder --chown=nestjs:nodejs /app/node_modules ./node_modules
 
 # Create necessary directories
 RUN mkdir -p logs uploads && chown -R nestjs:nodejs logs uploads
