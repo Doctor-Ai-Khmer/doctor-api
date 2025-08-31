@@ -9,7 +9,7 @@ services:
     environment:
       POSTGRES_DB: doctor_ai
       POSTGRES_USER: doctor_user
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-your_secure_password}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./database/init:/docker-entrypoint-initdb.d
@@ -28,7 +28,7 @@ services:
     image: redis:7-alpine
     container_name: doctor_ai_redis
     restart: unless-stopped
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-your_redis_password}
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
     volumes:
       - redis_data:/data
     ports:
@@ -36,7 +36,7 @@ services:
     networks:
       - doctor_ai_network
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-your_redis_password}", "--raw", "incr", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "--raw", "incr", "ping"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -55,13 +55,13 @@ services:
       - DB_HOST=postgres
       - DB_PORT=5432
       - DB_USERNAME=doctor_user
-      - DB_PASSWORD=${DB_PASSWORD:-your_secure_password}
+      - DB_PASSWORD=${DB_PASSWORD}
       - DB_NAME=doctor_ai
       - DB_SYNC=false
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - REDIS_PASSWORD=${REDIS_PASSWORD:-your_redis_password}
-      - JWT_SECRET=${JWT_SECRET:-your_jwt_secret}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET}
       - JWT_EXPIRES_IN=24h
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
@@ -86,7 +86,7 @@ services:
       timeout: 10s
       retries: 3
 
-  # Nginx Reverse Proxy
+  # Nginx Reverse Proxy (HTTP only, no SSL)
   nginx:
     image: nginx:alpine
     container_name: doctor_ai_nginx
