@@ -1,61 +1,114 @@
 version: '3.8'
-services:
-  api:
-    build: .
-    container_name: doctor_api
-    environment:
-      - PORT=8001
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_USERNAME=doctor_db
-      - DB_PASSWORD=doctor1234
-      - DB_NAME=doctor_db
-      - DB_SYNC=true
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
-      - JWT_SECRET=${JWT_SECRET}
-      - JWT_EXPIRATION_TIME=${JWT_EXPIRATION_TIME}
-      - FIREBASE_API_KEY=${FIREBASE_API_KEY}
-      - FIREBASE_AUTH_DOMAIN=${FIREBASE_AUTH_DOMAIN}
-      - FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID}
-      - FIREBASE_STORAGE_BUCKET=${FIREBASE_STORAGE_BUCKET}
-      - FIREBASE_MESSAGING_SENDER_ID=${FIREBASE_MESSAGING_SENDER_ID}
-      - FIREBASE_APP_ID=${FIREBASE_APP_ID}
-      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
-      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
-      - GOOGLE_CALLBACK_URL=${GOOGLE_CALLBACK_URL}
-    ports:
-      - "8001:8001"
-    depends_on:
-      - postgres
-      - redis
-    volumes:
-      - ./uploads:/usr/src/app/uploads
-    restart: unless-stopped
 
+services:
+  # PostgreSQL Database
   postgres:
-    image: postgres:latest
-    container_name: postgres_db
+    image: postgres:15-alpine
+    container_name: doctor_ai_postgres
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: doctor_db
-      POSTGRES_PASSWORD: doctor1234
-      POSTGRES_DB: doctor_db
-    ports:
-      - "4001:5432"
+      POSTGRES_DB: doctor_ai
+      POSTGRES_USER: doctor_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-your_secure_password}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    restart: unless-stopped
-
-  redis:
-    image: redis:alpine
-    container_name: redis_cache
+      - ./database/init:/docker-entrypoint-initdb.d
     ports:
-      - "6379:6379"
+      - "5432:5432"
+    networks:
+      - doctor_ai_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U doctor_user -d doctor_ai"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Redis for Bull Queue
+  redis:
+    image: redis:7-alpine
+    container_name: doctor_ai_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-your_redis_password}
     volumes:
       - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - doctor_ai_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Main Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: doctor_ai_app
     restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USERNAME=doctor_user
+      - DB_PASSWORD=${DB_PASSWORD:-your_secure_password}
+      - DB_NAME=doctor_ai
+      - DB_SYNC=false
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-your_redis_password}
+      - JWT_SECRET=${JWT_SECRET:-your_jwt_secret}
+      - JWT_EXPIRES_IN=24h
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./uploads:/app/uploads
+      - ./logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - doctor_ai_network
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: doctor_ai_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./uploads:/var/www/uploads:ro
+    depends_on:
+      - app
+    networks:
+      - doctor_ai_network
 
 volumes:
   postgres_data:
+    driver: local
   redis_data:
+    driver: local
+
+networks:
+  doctor_ai_network:
+    driver: bridge

@@ -1,48 +1,53 @@
-# Build stage
-FROM --platform=linux/arm64 node:20-bullseye AS builder
+# Multi-stage build for production
+FROM node:18-alpine AS builder
 
-WORKDIR /usr/src/app
-
-# Install build dependencies
-RUN apt-get update && apt-get install -y \
-    python3 \
-    make \
-    g++ \
-    && rm -rf /var/lib/apt/lists/*
+# Set working directory
+WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
 
-# Configure npm
-RUN npm config set registry https://registry.npmjs.org/
-RUN npm config set fetch-retries 5
-RUN npm config set fetch-retry-maxtimeout 60000
+# Install dependencies
+RUN npm ci --only=production
 
-# Install dependencies in multiple steps
-RUN npm install --no-package-lock --legacy-peer-deps @nestjs/common @nestjs/core @nestjs/platform-express @nestjs/typeorm typeorm pg bcrypt
-RUN npm install --no-package-lock --legacy-peer-deps @nestjs/bull bull @google/generative-ai sharp
-RUN npm install --no-package-lock --legacy-peer-deps firebase firebase-admin
-RUN npm install --no-package-lock --legacy-peer-deps @nestjs/jwt @nestjs/passport passport passport-jwt passport-google-oauth20
-RUN npm install --no-package-lock --legacy-peer-deps --save-dev @types/node typescript @types/express @nestjs/cli
-
-# Copy the rest of the application
+# Copy source code
 COPY . .
 
 # Build the application
 RUN npm run build
 
 # Production stage
-FROM --platform=linux/arm64 node:20-bullseye-slim
+FROM node:18-alpine AS production
 
-WORKDIR /usr/src/app
+# Create app user
+RUN addgroup -g 1001 -S nodejs
+RUN adduser -S nestjs -u 1001
 
-# Copy package files and built files
+# Set working directory
+WORKDIR /app
+
+# Copy package files
 COPY package*.json ./
-COPY --from=builder /usr/src/app/node_modules ./node_modules
-COPY --from=builder /usr/src/app/dist ./dist
+
+# Install only production dependencies
+RUN npm ci --only=production && npm cache clean --force
+
+# Copy built application from builder stage
+COPY --from=builder --chown=nestjs:nodejs /app/dist ./dist
+COPY --from=builder --chown=nestjs:nodejs /app/node_modules ./node_modules
+
+# Create necessary directories
+RUN mkdir -p logs uploads && chown -R nestjs:nodejs logs uploads
+
+# Switch to non-root user
+USER nestjs
 
 # Expose port
-EXPOSE 8001
+EXPOSE 3000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3000/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
 
 # Start the application
-CMD ["npm", "run", "start:prod"] 
+CMD ["node", "dist/main.js"] 
